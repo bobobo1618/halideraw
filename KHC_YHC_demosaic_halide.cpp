@@ -331,7 +331,7 @@ Func make_demosaic_func(ImageParam param, Type out_type) {
     //output.print_loop_nest();
 
     Target target = get_host_target();
-    target.set_feature(Target::Profile);
+    //target.set_feature(Target::Profile);
     //output.compile_jit(target);
     return output;
 }
