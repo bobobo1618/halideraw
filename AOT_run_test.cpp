@@ -1,11 +1,15 @@
 #include <libraw/libraw.h>
 #include <iostream>
-#include <Halide.h>
+//#include <Halide.h>
 #include <HalideRuntime.h>
+#include "HalideRuntimeOpenCL.h"
 #include "igd_demosaic.h"
+#include "halide_image.h"
 #include "halide_image_io.h"
-
-using namespace Halide;
+#include <time.h>
+#include <stdio.h>
+#include <ctime>
+//using namespace Halide;
 
 int main(int argc, char const *argv[])
 {
@@ -44,12 +48,26 @@ int main(int argc, char const *argv[])
     output_buf.dev_dirty = false;
     output_buf.dev = 0;
 
-
     for (int i = 0; i<20; i++) {
-        igd_demosaic(&input_buf, 0, &output_buf);
+        auto start = std::chrono::system_clock::now();
+        input_buf.host_dirty = true;
+        halide_copy_to_device(NULL, &input_buf, halide_opencl_device_interface());
+        std::cout << "Input: " << std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now()-start).count() << std::endl;
+
+        buffer_t input_no_host = *(&input_buf);
+        input_no_host.host = NULL;
+
+        buffer_t output_no_host = *(&output_buf);
+        output_no_host.host = (uint8_t *)1;
+
+        igd_demosaic(&input_no_host, 0, &output_no_host);
+        std::cout << "Halide: " << std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now()-start).count() << std::endl;
+        output_no_host.host = output_data;
+        halide_copy_to_host(NULL, &output_no_host);
+        std::cout << "Output: " << std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now()-start).count() << std::endl << std::endl;
     }
 
-    //Image<uint16_t> output_image = Image<uint16_t>(&output_buf, "output");
+    //Halide::Tools::Image<uint16_t> output_image = Image<uint16_t>(&output_buf, "output");
     //output_image.copy_to_host();
 
     //Tools::save_image(output_image, "test.png");
